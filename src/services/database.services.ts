@@ -1,6 +1,7 @@
 import { MongoClient, Collection, Db } from 'mongodb'
 import { config } from 'dotenv'
 import Account from '~/models/schemas/Account.schemas'
+import RefreshToken from '~/models/schemas/RefreshToken.schemas'
 config()
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@hocmai.5je1aww.mongodb.net/?retryWrites=true&w=majority`
 
@@ -28,6 +29,10 @@ class DatabaseService {
   // account collections
   get accounts(): Collection<Account> {
     return this.db.collection(process.env.DB_ACCOUNT_COLLECTIONS as string)
+  }
+  // refresh token collections
+  get refreshTokens(): Collection<RefreshToken>{
+    return this.db.collection(process.env.DB_REFRESH_TOKEN_COLLECTIONS as string)
   }
 }
 
