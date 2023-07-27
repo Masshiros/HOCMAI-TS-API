@@ -7,6 +7,7 @@ import { hashPassword } from '~/utils/crypto'
 import { signToken } from '~/utils/jwt'
 import { config } from 'dotenv'
 import { ObjectId } from 'mongodb'
+import { USERS_MESSAGES } from '~/constants/messages'
 config()
 
 class AccountService {
@@ -76,6 +77,13 @@ class AccountService {
       new RefreshToken({ token: refresh_token, account_id: new ObjectId(account_id) })
     )
     return { access_token, refresh_token }
+  }
+  // logout
+  async logout(refresh_token: string) {
+    await databaseService.refreshTokens.deleteOne({ token: refresh_token })
+    return {
+      message: USERS_MESSAGES.LOGOUT_SUCCESS
+    }
   }
 }
 const accountService = new AccountService()

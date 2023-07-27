@@ -1,7 +1,13 @@
 import { Request, Response, NextFunction } from 'express'
 import { checkSchema } from 'express-validator'
+import { JsonWebTokenError } from 'jsonwebtoken'
+import { capitalize } from 'lodash'
 import { USERS_MESSAGES } from '~/constants/messages'
+import HTTP_STATUS from '~/constants/status'
+import { ErrorWithStatus } from '~/models/Errors'
 import accountService from '~/services/account.services'
+import databaseService from '~/services/database.services'
+import { verifyToken } from '~/utils/jwt'
 import { validate } from '~/utils/validation'
 
 export const loginValidation = validate(
@@ -19,7 +25,7 @@ export const loginValidation = validate(
           if (account === null) {
             throw new Error(USERS_MESSAGES.EMAIL_OR_PASSWORD_IS_INCORRECT)
           }
-          req.account = account
+          ;(req as Request).account = account
           return true
         }
       }
@@ -128,4 +134,79 @@ export const registerValidation = validate(
       }
     }
   })
+)
+export const accessTokenValidator = validate(
+  checkSchema(
+    {
+      Authorization: {
+        notEmpty: {
+          errorMessage: USERS_MESSAGES.ACCESS_TOKEN_IS_REQUIRED
+        },
+        custom: {
+          options: async (value, { req }) => {
+            // get token
+            const access_token = value.split(' ')[1]
+            // check token exist
+            if (!access_token) {
+              throw new ErrorWithStatus({
+                message: USERS_MESSAGES.ACCESS_TOKEN_IS_REQUIRED,
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
+            // verify token
+            const decoded_authorization = await verifyToken({ token: access_token })
+            ;(req as Request).decoded_authorization = decoded_authorization
+            return true
+          }
+        }
+      }
+    },
+    ['headers']
+  )
+)
+
+export const refreshTokenValidator = validate(
+  checkSchema(
+    {
+      refresh_token: {
+        notEmpty: {
+          errorMessage: USERS_MESSAGES.REFRESH_TOKEN_IS_REQUIRED
+        },
+        custom: {
+          options: async (value, { req }) => {
+            // decode token and check token exist in db
+            try {
+              const [decoded_refresh_token, refresh_token] = await Promise.all([
+                verifyToken({ token: value }),
+                databaseService.refreshTokens.findOne
+              ])
+              // check token exist
+              if (!refresh_token) {
+                throw new ErrorWithStatus({
+                  message: USERS_MESSAGES.USED_REFRESH_TOKEN_OR_NOT_EXIST,
+                  status: HTTP_STATUS.UNAUTHORIZED
+                })
+              }
+              req.decoded_refresh_token = decoded_refresh_token
+              return true
+            } catch (error) {
+              // if we throw new ErrorWithStatus here
+              //, in test case "check token exist", it will not display that Error
+              // because when we throw new error,  it will find the nearest catch to go to
+              // and will display the nearest catch error
+              // so now, we need to check whether that error is JsonWebTokenError or Other error
+              if (error instanceof JsonWebTokenError) {
+                throw new ErrorWithStatus({
+                  message: capitalize(USERS_MESSAGES.REFRESH_TOKEN_IS_INVALID),
+                  status: HTTP_STATUS.UNAUTHORIZED
+                })
+              }
+              throw error
+            }
+          }
+        }
+      }
+    },
+    ['body']
+  )
 )

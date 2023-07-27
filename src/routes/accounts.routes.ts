@@ -1,6 +1,11 @@
 import { Router } from 'express'
 import { loginController, registerController } from '~/controllers/accounts.controllers'
-import { loginValidation, registerValidation } from '~/middlewares/accounts.middlewares'
+import {
+  accessTokenValidator,
+  loginValidation,
+  refreshTokenValidator,
+  registerValidation
+} from '~/middlewares/accounts.middlewares'
 import { wrapRequestHandler } from '~/utils/handlers'
 const accountsRouter = Router()
 accountsRouter.post('/login')
@@ -21,5 +26,13 @@ accountsRouter.post('/login', loginValidation, wrapRequestHandler(loginControlle
  * Access  None
  */
 accountsRouter.post('/register', registerValidation, wrapRequestHandler(registerController))
-
+/**
+ * DESC   Logout
+ * Path:   /logout
+ * Method  POST
+ * Body:   {refresh_token: string}
+ * Header" Authorization
+ * Access  accessTokenValidator + refreshTokenValidator
+ */
+accountsRouter.post('/logout', accessTokenValidator, refreshTokenValidator)
 export default accountsRouter
